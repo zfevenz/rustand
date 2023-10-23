@@ -10,8 +10,8 @@ use crossterm::ExecutableCommand;
 pub struct Editor {}
 
 impl Editor {
-    fn check_if_ctrl_char(&self, key_event: KeyEvent, c: char) -> bool {
-        return key_event.code == Char(c) && key_event.modifiers == KeyModifiers::CONTROL;
+    fn check_if_ctrl_char(key_event: KeyEvent, c: char) -> bool {
+        key_event.code == Char(c) && key_event.modifiers == KeyModifiers::CONTROL
     }
 
     pub fn default() -> Self {
@@ -23,11 +23,11 @@ impl Editor {
         loop {
             match read().unwrap() {
                 Event::Key(key_event) => {
-                    if self.check_if_ctrl_char(key_event, 'c') {
+                    if Editor::check_if_ctrl_char(key_event, 'c') {
                         break;
                     }
                     if let KeyCode::Char(c) = key_event.code {
-                        stdout().execute(Print(c));
+                        stdout().execute(Print(c)).unwrap();
                     }
                 }
                 _ => {}
