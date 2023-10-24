@@ -1,11 +1,11 @@
-pub mod editor;
+mod editor;
+mod terminal;
+pub use editor::Editor;
+pub use terminal::Terminal;
 
 use std::io;
 
-use editor::Editor;
-
 fn main() -> io::Result<()> {
-    let editor = Editor::default();
-    editor.run();
+    Editor::default().run();
     Ok(())
 }
