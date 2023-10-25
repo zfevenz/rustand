@@ -1,4 +1,4 @@
-use std::{fmt::Display, io::stdout};
+use std::{fmt::Display, io::stdout, default};
 
 use crossterm::{
     cursor::MoveTo,
@@ -10,7 +10,7 @@ use crossterm::{
 
 use crate::editor::Position;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Size {
     pub width: u16,
     pub height: u16,

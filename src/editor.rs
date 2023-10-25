@@ -1,5 +1,11 @@
+use std::env;
+use std::fmt::format;
 use std::io::stdout;
+use std::process::id;
 
+use crate::document;
+use crate::Document;
+use crate::Row;
 use crate::Terminal;
 
 use crossterm::style::Print;
@@ -12,7 +18,7 @@ use crossterm::{
     ExecutableCommand,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -23,6 +29,21 @@ pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
+    document: Document,
+}
+
+fn number_length(mut n: usize) -> usize {
+    if n == 0 {
+        return 1;
+    }
+
+    let mut len = 0;
+    while n != 0 {
+        len += 1;
+        n /= 10;
+    }
+
+    len
 }
 
 impl Editor {
@@ -31,16 +52,25 @@ impl Editor {
     }
 
     pub fn default() -> Self {
+        let args: Vec<String> = env::args().collect();
+        let document = if args.len() > 1 {
+            let filename = &args[1];
+            Document::open(&filename).unwrap_or_default()
+        } else {
+            Document::default()
+        };
+
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
-            cursor_position: Position { x: 0, y: 0 },
+            cursor_position: Position::default(),
+            document: document,
         }
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
-        Terminal::cursor_position(&Position { x: 0, y: 0 });
+        Terminal::cursor_position(&Position::default());
         self.draw_rows();
         Terminal::cursor_position(&self.cursor_position);
         Terminal::cursor_show();
@@ -51,19 +81,36 @@ impl Editor {
     }
 
     fn draw_rows(&self) {
-        for idx in 0..self.terminal.size().height {
+        let terminal_height = self.terminal.size().height;
+        for terminal_row_idx in 0..terminal_height {
             Terminal::cursor_position(&Position {
                 x: 0,
-                y: idx as usize,
+                y: terminal_row_idx as usize,
             });
             Terminal::clear_current_line();
-            Terminal::print(idx);
+
+            let formatted_line_number = format!(
+                "{:width$} ",
+                terminal_row_idx,
+                width = number_length(terminal_height as usize),
+            );
+            Terminal::print(&formatted_line_number);
+            if let Some(row) = self.document.row(terminal_row_idx as usize) {
+                self.draw_row(row);
+            }
         }
+    }
+
+    pub fn draw_row(&self, row: &Row) {
+        let start = 0;
+        let end = self.terminal.size().width as usize;
+        let row_to_be_rendered = row.render(start, end);
+        Terminal::print(row_to_be_rendered);
     }
 
     pub fn die(e: std::io::Error) {
         Terminal::clear_screen();
-        Terminal::cursor_position(&Position { x: 0, y: 0 });
+        Terminal::cursor_position(&Position::default());
         panic!("{}", e);
     }
 
@@ -73,6 +120,9 @@ impl Editor {
 
         match key_event.code {
             KeyCode::Char('c') if Editor::check_if_ctrl_char(key_event, 'c') => {
+                self.should_quit = true;
+            }
+            KeyCode::Char('q') if Editor::check_if_ctrl_char(key_event, 'q') => {
                 self.should_quit = true;
             }
             KeyCode::Char(c) => {
@@ -127,7 +177,7 @@ impl Editor {
 
             if self.should_quit {
                 Terminal::clear_screen();
-                Terminal::cursor_position(&Position { x: 0, y: 0 });
+                Terminal::cursor_position(&Position::default());
                 Terminal::print("Exiting RustAnd");
                 break;
             }
